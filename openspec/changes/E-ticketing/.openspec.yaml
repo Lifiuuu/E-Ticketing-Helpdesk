@@ -1,0 +1,19 @@
+context: |
+  Project: E-Ticketing Helpdesk Mobile App (Frontend)
+  Tech stack: Flutter, Dart
+  Architecture: Clean Architecture (Domain, Data, Presentation layers)
+  State Management: BLoC / Riverpod (pilih salah satu sesuai standar tim)
+  Backend context: RESTful API (Laravel) dengan database PostgreSQL
+  BaaS integration: Supabase / Firebase (untuk push notification)
+  UI/UX: Mendukung Dark & Light mode, Responsive UI, Lazy loading list
+
+rules:
+  proposal:
+    - Fokus pada kebutuhan fungsional client-side (frontend).
+    - Selalu sertakan bagian "Scope" dan "Out of Scope".
+  design:
+    - Jelaskan struktur folder Clean Architecture secara singkat.
+    - Definisikan kontrak API secara umum (Request/Response).
+  tasks:
+    - Pecah tugas maksimal pengerjaan 1-2 jam per tiket.
+    - Selalu mulai dengan setup struktur dasar sebelum membuat UI.

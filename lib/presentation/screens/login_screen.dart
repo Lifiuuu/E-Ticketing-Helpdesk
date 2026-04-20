@@ -1,77 +1,89 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import '../../core/auth/auth_provider.dart';
+import '../../core/providers/auth_provider.dart';
 
-class LoginScreen extends StatefulWidget {
+class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
 
   @override
-  State<LoginScreen> createState() => _LoginScreenState();
+  ConsumerState<LoginScreen> createState() => _LoginScreenState();
 }
 
-class _LoginScreenState extends State<LoginScreen> {
+class _LoginScreenState extends ConsumerState<LoginScreen> {
   final _formKey = GlobalKey<FormState>();
-  final _usernameCtl = TextEditingController();
+  final _emailCtl = TextEditingController(); // Gunakan Email
   final _passwordCtl = TextEditingController();
-  bool _loading = false;
-
-  @override
-  void dispose() {
-    _usernameCtl.dispose();
-    _passwordCtl.dispose();
-    super.dispose();
-  }
 
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
-    setState(() => _loading = true);
-    final auth = Provider.of<AuthProvider>(context, listen: false);
-    final ok = await auth.login(_usernameCtl.text.trim(), _passwordCtl.text);
-    setState(() => _loading = false);
-    if (ok) {
-      context.go('/home');
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Login gagal')));
+    
+    // Memanggil fungsi login asli dari Notifier
+    final success = await ref.read(authNotifierProvider.notifier).login(
+      _emailCtl.text.trim(),
+      _passwordCtl.text,
+    );
+
+    debugPrint('=== HASIL TOMBOL LOGIN: $success ===');
+
+    if (success) {
+      if (!mounted) return;
+      context.go('/dashboard');
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    // Listen for auth errors and show SnackBar from provider
+    ref.listen<String?>(authNotifierProvider.select((s) => s.error), (prev, next) {
+      if (next != null && next.isNotEmpty) {
+        if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(next)));
+        ref.read(authNotifierProvider.notifier).clearError();
+      }
+    });
+
+    // Pantau status loading dari provider
+    final isLoading = ref.watch(authNotifierProvider).isLoading;
+
     return Scaffold(
-      appBar: AppBar(title: const Text('Login')),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Form(
-          key: _formKey,
-          child: Column(
-            children: [
-              TextFormField(
-                controller: _usernameCtl,
-                decoration: const InputDecoration(labelText: 'Username'),
-                validator: (v) => (v == null || v.isEmpty) ? 'Required' : null,
+      appBar: AppBar(title: const Text('E-Ticketing'), centerTitle: true),
+      body: Center(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(16.0),
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 600),
+            child: Form(
+              key: _formKey,
+              child: Column(
+                children: [
+                  Text(
+                    'Login',
+                    style: Theme.of(context).textTheme.titleLarge,
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 12),
+                  TextFormField(
+                    controller: _emailCtl,
+                    decoration: const InputDecoration(labelText: 'Email'),
+                    validator: (v) => (v == null || v.isEmpty) ? 'Wajib diisi' : null,
+                  ),
+                  const SizedBox(height: 12),
+                  TextFormField(
+                    controller: _passwordCtl,
+                    decoration: const InputDecoration(labelText: 'Password'),
+                    obscureText: true,
+                    validator: (v) => (v == null || v.length < 6) ? 'Minimal 6 karakter' : null,
+                  ),
+                  const SizedBox(height: 20),
+                  isLoading
+                      ? const CircularProgressIndicator()
+                      : ElevatedButton(onPressed: _submit, child: const Text('Login')),
+                  const SizedBox(height: 12),
+                  TextButton(onPressed: () => context.go('/register'), child: const Text('Belum punya akun? Register')),
+                  TextButton(onPressed: () => context.go('/reset'), child: const Text('Lupa Password?')),
+                ],
               ),
-              const SizedBox(height: 12),
-              TextFormField(
-                controller: _passwordCtl,
-                decoration: const InputDecoration(labelText: 'Password'),
-                obscureText: true,
-                validator: (v) => (v == null || v.isEmpty) ? 'Required' : null,
-              ),
-              const SizedBox(height: 20),
-              _loading
-                  ? const CircularProgressIndicator()
-                  : ElevatedButton(onPressed: _submit, child: const Text('Login')),
-              const SizedBox(height: 12),
-              TextButton(
-                onPressed: () => context.go('/register'),
-                child: const Text('Register'),
-              ),
-              TextButton(
-                onPressed: () => context.go('/reset'),
-                child: const Text('Reset Password'),
-              ),
-            ],
+            ),
           ),
         ),
       ),

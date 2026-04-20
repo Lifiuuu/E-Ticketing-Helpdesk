@@ -1,34 +1,35 @@
-import 'dart:async';
-import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../providers/supabase_provider.dart';
 
-class NotificationEntry {
-  final int ticketId;
-  final String message;
-  NotificationEntry({required this.ticketId, required this.message});
-}
+class NotificationService {
+  final SupabaseClient _supabase;
+  
+  NotificationService(this._supabase);
 
-class NotificationService extends ChangeNotifier {
-  NotificationService._internal();
-  static final NotificationService instance = NotificationService._internal();
-
-  NotificationEntry? _current;
-  Timer? _dismissTimer;
-
-  NotificationEntry? get current => _current;
-
-  void showNotification(int ticketId, String message, {Duration duration = const Duration(seconds: 4)}) {
-    _dismissTimer?.cancel();
-    _current = NotificationEntry(ticketId: ticketId, message: message);
-    notifyListeners();
-    _dismissTimer = Timer(duration, () {
-      _current = null;
-      notifyListeners();
-    });
-  }
-
-  void clear() {
-    _dismissTimer?.cancel();
-    _current = null;
-    notifyListeners();
+  // Fungsi untuk mendengarkan notifikasi baru secara realtime
+  void listenToNotifications(String userId, Function(String title, String msg) onNewNotification) {
+    _supabase
+        .channel('public:notifications')
+        .onPostgresChanges(
+          event: PostgresChangeEvent.insert,
+          schema: 'public',
+          table: 'notifications',
+          filter: PostgresChangeFilter(
+            type: PostgresChangeFilterType.eq,
+            column: 'user_id',
+            value: userId,
+          ),
+          callback: (payload) {
+            final data = payload.newRecord;
+            onNewNotification(data['title'], data['message']);
+          },
+        )
+        .subscribe();
   }
 }
+
+// Provider agar bisa diakses di main.dart atau SplashScreen
+final notificationServiceProvider = Provider((ref) {
+  return NotificationService(ref.watch(supabaseProvider));
+});

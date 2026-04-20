@@ -53,6 +53,13 @@
 	<string>LaunchScreen</string>
 	<key>UIMainStoryboardFile</key>
 	<string>Main</string>
+	<!-- Permissions for camera and photo library (image_picker) -->
+	<key>NSCameraUsageDescription</key>
+	<string>App membutuhkan akses kamera untuk mengambil foto laporan.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>App membutuhkan akses ke foto untuk mengunggah lampiran.</string>
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>App membutuhkan izin untuk menyimpan foto yang diambil ke perpustakaan jika diperlukan.</string>
 	<key>UISupportedInterfaceOrientations</key>
 	<array>
 		<string>UIInterfaceOrientationPortrait</string>

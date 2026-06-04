@@ -18,8 +18,9 @@ class ThemeModeNotifier extends StateNotifier<ThemeMode> {
     try {
       final prefs = await SharedPreferences.getInstance();
       final v = prefs.getString(_prefKey);
-      if (v == 'light') state = ThemeMode.light;
-      else if (v == 'dark') state = ThemeMode.dark;
+      if (v == 'light') {
+        state = ThemeMode.light;
+      } else if (v == 'dark') state = ThemeMode.dark;
       else if (v == 'system') state = ThemeMode.system;
     } catch (_) {}
   }
@@ -35,8 +36,9 @@ class ThemeModeNotifier extends StateNotifier<ThemeMode> {
   set state(ThemeMode value) {
     super.state = value;
     // persist
-    if (value == ThemeMode.light) _save('light');
-    else if (value == ThemeMode.dark) _save('dark');
+    if (value == ThemeMode.light) {
+      _save('light');
+    } else if (value == ThemeMode.dark) _save('dark');
     else _save('system');
   }
 }

@@ -1,7 +1,9 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:projectmobile/data/models/ticket_attachment_model.dart';
-import 'package:url_launcher/url_launcher.dart';
-
+import 'package:http/http.dart' as http;
+import 'package:path_provider/path_provider.dart';
+import 'package:open_filex/open_filex.dart';
 /// Widget grid thumbnail attachment untuk Detail Tiket.
 /// Menampilkan daftar attachment dalam grid 3-kolom; tap untuk full-screen viewer.
 class AttachmentGrid extends StatelessWidget {
@@ -94,15 +96,48 @@ class AttachmentGrid extends StatelessWidget {
     if (isImage) {
       _openFullScreen(context, att.fileUrl, att.fileName);
     } else {
-      final uri = Uri.parse(att.fileUrl);
-      if (await canLaunchUrl(uri)) {
-        await launchUrl(uri, mode: LaunchMode.externalApplication);
+      _downloadAndOpenFile(context, att);
+    }
+  }
+
+  Future<void> _downloadAndOpenFile(BuildContext context, TicketAttachmentModel att) async {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => const Center(child: CircularProgressIndicator()),
+    );
+
+    try {
+      final response = await http.get(Uri.parse(att.fileUrl));
+      
+      if (!context.mounted) return;
+      Navigator.of(context).pop(); // Tutup loading dialog
+
+      if (response.statusCode == 200) {
+        final dir = await getTemporaryDirectory();
+        final fileName = att.fileName ?? 'document_${DateTime.now().millisecondsSinceEpoch}.pdf';
+        final file = File('${dir.path}/$fileName');
+        await file.writeAsBytes(response.bodyBytes);
+        
+        final result = await OpenFilex.open(file.path);
+        if (result.type != ResultType.done && context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Tidak dapat membuka file: ${result.message}')),
+          );
+        }
       } else {
         if (context.mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Tidak dapat membuka file ini')),
+            const SnackBar(content: Text('Gagal mendownload file')),
           );
         }
+      }
+    } catch (e) {
+      if (context.mounted) {
+        Navigator.of(context).pop(); // Tutup loading dialog jika error
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Terjadi kesalahan: $e')),
+        );
       }
     }
   }

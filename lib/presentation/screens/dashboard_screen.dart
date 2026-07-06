@@ -74,11 +74,13 @@ class DashboardScreen extends ConsumerWidget {
                   loading: () => const Center(child: CircularProgressIndicator()),
                   error: (err, stack) => Text('Gagal memuat data: $err'),
                   data: (tickets) {
-                    final total = tickets.length;
-                    final open = tickets.where((t) => t.status == 'Open').length;
-                    final assigned = tickets.where((t) => t.assignedTo != null && t.status != 'Closed' && t.status != 'Resolved').length;
-                    final inProgress = tickets.where((t) => t.status == 'In Progress').length;
-                    final closed = tickets.where((t) =>
+                    // Exclude soft-deleted tickets
+                    final activeTickets = tickets.where((t) => !t.isDeleted).toList();
+                    final total = activeTickets.length;
+                    final open = activeTickets.where((t) => t.status == 'Open').length;
+                    final assigned = activeTickets.where((t) => t.assignedTo != null && t.status != 'Closed' && t.status != 'Resolved').length;
+                    final inProgress = activeTickets.where((t) => t.status == 'In Progress').length;
+                    final closed = activeTickets.where((t) =>
                         t.status == 'Closed' || t.status == 'Resolved').length;
 
                     return Column(

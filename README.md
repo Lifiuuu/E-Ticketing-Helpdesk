@@ -2,8 +2,6 @@
 
 Aplikasi mobile Flutter untuk sistem e-ticketing helpdesk yang memungkinkan pengguna (customer) membuat tiket bantuan dan petugas (helpdesk/admin) mengelola tiket dengan fitur real-time notifications, comments, dan status tracking terintegrasi dengan Supabase.
 
-## 📱 Screenshots
-*(Kamu bisa menambahkan tautan gambar screenshot aplikasimu di sini nanti)*
 
 ## ✨ Fitur Utama
 - **Role-Based Access Control**: Mendukung 3 Role (User, Helpdesk, Admin)

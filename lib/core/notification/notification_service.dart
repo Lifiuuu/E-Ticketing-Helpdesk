@@ -15,7 +15,7 @@ const AndroidNotificationChannel _channel = AndroidNotificationChannel(
 
 /// Inisialisasi plugin — dipanggil di main() sebelum runApp()
 Future<void> initLocalNotifications() async {
-  const initSettingsAndroid = AndroidInitializationSettings('@mipmap/ic_launcher');
+  const initSettingsAndroid = AndroidInitializationSettings('@mipmap/launcher_icon');
   const initSettingsDarwin = DarwinInitializationSettings(
     requestAlertPermission: true,
     requestBadgePermission: true,

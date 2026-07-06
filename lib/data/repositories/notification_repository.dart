@@ -10,6 +10,7 @@ class NotificationRepository {
     final response = await _supabase
         .from('notifications')
         .select()
+        .eq('is_deleted', false)
         .order('created_at', ascending: false);
     
     return response.map((json) => NotificationModel.fromJson(json)).toList();
@@ -38,8 +39,27 @@ class NotificationRepository {
   Future<void> deleteNotification(String notificationId) async {
     await _supabase
         .from('notifications')
-        .delete()
+        .update({'is_deleted': true})
         .eq('id', notificationId);
+  }
+
+  // Hapus beberapa notifikasi sekaligus
+  Future<void> deleteMultipleNotifications(List<String> notificationIds) async {
+    if (notificationIds.isEmpty) return;
+    await _supabase
+        .from('notifications')
+        .update({'is_deleted': true})
+        .inFilter('id', notificationIds);
+  }
+
+  // Hapus semua notifikasi milik user ini
+  Future<void> deleteAllNotifications() async {
+    final user = _supabase.auth.currentUser;
+    if (user == null) return;
+    await _supabase
+        .from('notifications')
+        .update({'is_deleted': true})
+        .eq('user_id', user.id);
   }
 
   // Realtime stream for notifications belonging to a specific user
@@ -48,8 +68,11 @@ class NotificationRepository {
         .from('notifications')
         .stream(primaryKey: ['id'])
         .eq('user_id', userId);
+        
     return stream.map((event) {
       final list = (event as List)
+          // Filter data secara lokal karena Supabase Stream hanya mengizinkan 1 filter .eq
+          .where((json) => json['is_deleted'] == false || json['is_deleted'] == null)
           .map((json) => NotificationModel.fromJson(Map<String, dynamic>.from(json)))
           .toList();
       // Sort by createdAt descending (newest first)

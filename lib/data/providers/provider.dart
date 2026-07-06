@@ -5,10 +5,17 @@ import 'package:projectmobile/data/repositories/auth_repository.dart';
 import 'package:projectmobile/data/models/profile_model.dart';
 import 'package:projectmobile/data/repositories/notification_repository.dart';
 import 'package:projectmobile/data/repositories/ticket_repository.dart';
+import 'package:projectmobile/data/repositories/history_repository.dart';
+import 'package:projectmobile/data/repositories/user_repository.dart';
 import 'package:projectmobile/data/models/comment_model.dart';
 import 'package:projectmobile/data/models/notification_model.dart';
+import 'package:projectmobile/data/models/ticket_attachment_model.dart';
+import 'package:projectmobile/data/models/ticket_history_model.dart';
 
-// 1. Provider untuk Repository (Mesin Database)
+// ============================================================
+// 1. Repository Providers
+// ============================================================
+
 final authRepoProvider = Provider((ref) {
   return AuthRepository(ref.watch(supabaseProvider));
 });
@@ -21,8 +28,19 @@ final notificationRepoProvider = Provider((ref) {
   return NotificationRepository(ref.watch(supabaseProvider));
 });
 
-// 2. FutureProvider untuk List Tiket (Otomatis Handle Loading/Error)
-// Digunakan di TicketsListScreen untuk FR-010 [cite: 92-96]
+final historyRepoProvider = Provider((ref) {
+  return HistoryRepository(ref.watch(supabaseProvider));
+});
+
+final userRepoProvider = Provider((ref) {
+  return UserRepository(ref.watch(supabaseProvider));
+});
+
+// ============================================================
+// 2. Ticket Providers
+// ============================================================
+
+/// FR-005/006/007: List tiket sesuai role (role-filtered di repository)
 final ticketsStreamProvider = FutureProvider.autoDispose<List<dynamic>>((ref) async {
   final repo = ref.watch(ticketRepoProvider);
   final auth = ref.watch(authNotifierProvider);
@@ -45,13 +63,29 @@ final ticketsStreamProvider = FutureProvider.autoDispose<List<dynamic>>((ref) as
   return await repo.getTicketsForUser(user.id);
 });
 
-// 3. Provider untuk Notifikasi (FR-007) [cite: 78-83]
+/// Attachments per tiket (dari tabel ticket_attachments)
+final attachmentsProvider = FutureProvider.autoDispose.family<List<TicketAttachmentModel>, String>((ref, ticketId) {
+  final repo = ref.watch(ticketRepoProvider);
+  return repo.getAttachments(ticketId);
+});
+
+/// FR-010/011 / BR-005: History perubahan tiket per ticketId
+final ticketHistoryProvider = FutureProvider.autoDispose.family<List<TicketHistoryModel>, String>((ref, ticketId) {
+  final repo = ref.watch(historyRepoProvider);
+  return repo.getTicketHistory(ticketId);
+});
+
+// ============================================================
+// 3. Notification Providers
+// ============================================================
+
+/// FR-008: List notifikasi (FutureProvider)
 final notificationsProvider = FutureProvider((ref) {
   final repo = ref.watch(notificationRepoProvider);
   return repo.getNotifications();
 });
 
-// Realtime notifications for current user
+/// Realtime notifications for current user (StreamProvider)
 final notificationsStreamProvider = StreamProvider.autoDispose<List<NotificationModel>>((ref) {
   final repo = ref.watch(notificationRepoProvider);
   final auth = ref.watch(authNotifierProvider);
@@ -60,27 +94,46 @@ final notificationsStreamProvider = StreamProvider.autoDispose<List<Notification
   return repo.getNotificationsStream(user.id);
 });
 
-// Comments provider per ticket
-// Stream provider for comments so UI updates in realtime when DB changes
+// ============================================================
+// 4. Comment Providers
+// ============================================================
+
+/// Stream komentar per tiket (realtime)
 final commentsProvider = StreamProvider.autoDispose.family<List<CommentModel>, String>((ref, ticketId) {
   final repo = ref.watch(ticketRepoProvider);
   return repo.getCommentsStream(ticketId);
 });
 
-// Profile provider by id
+// ============================================================
+// 5. Profile & User Providers
+// ============================================================
+
+/// Profil user by ID (untuk tampilan nama di komentar & tracking)
 final profileProvider = FutureProvider.family<ProfileModel?, String>((ref, id) {
   final repo = ref.watch(authRepoProvider);
   return repo.getProfileById(id);
 });
 
-// Helpdesk users provider (untuk dropdown assign ticket)
+/// Daftar helpdesk (untuk dropdown assign ticket)
 final helpdeskUsersProvider = FutureProvider.autoDispose<List<ProfileModel>>((ref) {
   final repo = ref.watch(authRepoProvider);
   return repo.getHelpdeskUsers();
 });
 
-// Admin users provider (untuk notify admin pada tiket baru dan komentar)
+/// Daftar admin (untuk notifikasi tiket baru dan komentar)
 final adminUsersProvider = FutureProvider.autoDispose<List<ProfileModel>>((ref) {
   final repo = ref.watch(authRepoProvider);
   return repo.getAdminUsers();
+});
+
+/// FR-007: Admin — daftar SEMUA pengguna (untuk user management screen)
+final userListProvider = FutureProvider.autoDispose<List<ProfileModel>>((ref) {
+  final repo = ref.watch(userRepoProvider);
+  return repo.getAllUsers();
+});
+
+/// Dropdown pelapor: hanya user aktif dengan role 'User' (untuk Helpdesk/Admin create ticket)
+final userListForDropdownProvider = FutureProvider.autoDispose<List<ProfileModel>>((ref) {
+  final repo = ref.watch(userRepoProvider);
+  return repo.getUsersWithRoleUser();
 });

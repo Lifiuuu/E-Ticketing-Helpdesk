@@ -60,6 +60,8 @@
 	<string>App membutuhkan akses ke foto untuk mengunggah lampiran.</string>
 	<key>NSPhotoLibraryAddUsageDescription</key>
 	<string>App membutuhkan izin untuk menyimpan foto yang diambil ke perpustakaan jika diperlukan.</string>
+	<key>NSUserNotificationsUsageDescription</key>
+	<string>App mengirim notifikasi untuk memberitahu perubahan status tiket dan komentar baru.</string>
 	<key>UISupportedInterfaceOrientations</key>
 	<array>
 		<string>UIInterfaceOrientationPortrait</string>

@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "370331986813",
+    "project_id": "e-ticketing-helpdesk-bec68",
+    "storage_bucket": "e-ticketing-helpdesk-bec68.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:370331986813:android:84c3e16ca1d50b7b9afa14",
+        "android_client_info": {
+          "package_name": "com.example.projectmobile"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDZQNMHiYgZCULF-e7e7yzAkgFiAYvNWwg"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

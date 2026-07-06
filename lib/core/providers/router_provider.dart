@@ -14,6 +14,9 @@ import 'package:projectmobile/presentation/screens/create_ticket_screen.dart';
 import 'package:projectmobile/presentation/screens/ticket_detail_screen.dart';
 import 'package:projectmobile/presentation/screens/update_password_screen.dart';
 import 'package:projectmobile/presentation/screens/notifications_screen.dart';
+import 'package:projectmobile/presentation/screens/tracking_ticket_screen.dart';
+import 'package:projectmobile/presentation/screens/user_management_screen.dart';
+import 'package:projectmobile/presentation/screens/settings_screen.dart';
 
 final routerProvider = Provider<GoRouter>((ref) {
 
@@ -21,11 +24,7 @@ final routerProvider = Provider<GoRouter>((ref) {
     initialLocation: '/splash',
     
     redirect: (context, state) {
-      // ---> PINDAHKAN KE SINI & GANTI JADI ref.read <---
-      // Satpam hanya mengecek KTP saat ada yang mau lewat, bukan diamati tiap detik
       final auth = ref.read(authNotifierProvider);
-      // Use Supabase session to determine logged-in state so users aren't
-      // treated as logged-out when their `profiles` row is missing.
       final session = ref.read(supabaseProvider).auth.currentSession;
       final isLoggedIn = session != null;
       final role = auth.role.toLowerCase();
@@ -38,14 +37,7 @@ final routerProvider = Provider<GoRouter>((ref) {
       if (path == '/splash') return null; 
 
       final isAuthPage = path == '/login' || path == '/register' || path == '/reset';
-      // Some platforms may deliver the deep-link as '/?code=...' instead of
-      // '/reset-callback?code=...'. Treat any incoming URI that contains
-      // a Supabase reset `code` query parameter as the update-password page.
       final uri = Uri.parse(path);
-      // Treat a number of possible deep-link query parameters from Supabase
-      // as the update-password flow. Some platforms deliver the link as
-      // '/?type=recovery&...' or include 'access_token'/'token' instead of
-      // a 'code' key.
       final isUpdatePasswordPage =
           path.startsWith('/reset-callback') ||
           uri.queryParameters.containsKey('code') ||
@@ -66,11 +58,9 @@ final routerProvider = Provider<GoRouter>((ref) {
         return '/dashboard';
       }
 
-      if (isLoggedIn) {
-        final isPetugas = role == 'admin' || role == 'helpdesk';
-        if (path == '/create-ticket' && isPetugas) {
-          return '/tickets'; 
-        }
+      // Blokir /users untuk non-admin
+      if (path == '/users' && role != 'admin') {
+        return '/dashboard';
       }
 
       return null; 
@@ -123,6 +113,7 @@ final routerProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: '/create-ticket',
+        // FR-005/006/007: semua role dapat akses; role check dilakukan di dalam screen
         builder: (context, state) => const CreateTicketScreen(),
       ),
       GoRoute(
@@ -131,6 +122,24 @@ final routerProvider = Provider<GoRouter>((ref) {
           final id = state.pathParameters['id']!;
           return TicketDetailScreen(id: id);
         },
+      ),
+      // FR-010/011: Tracking/history tiket
+      GoRoute(
+        path: '/ticket/:id/tracking',
+        builder: (context, state) {
+          final id = state.pathParameters['id']!;
+          return TrackingTicketScreen(ticketId: id);
+        },
+      ),
+      // FR-007: Admin — kelola pengguna
+      GoRoute(
+        path: '/users',
+        builder: (context, state) => const UserManagementScreen(),
+      ),
+      // Settings screen
+      GoRoute(
+        path: '/settings',
+        builder: (context, state) => const SettingsScreen(),
       ),
     ],
   );

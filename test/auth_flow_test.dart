@@ -1,3 +1,4 @@
+import 'dart:io' as io;
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -38,6 +39,15 @@ class FakeAuthRepo implements AuthRepoInterface {
   Future<List<ProfileModel>> getHelpdeskUsers() async => [];
   @override
   Future<List<ProfileModel>> getAdminUsers() async => [];
+
+  @override
+  Future<void> updateProfile(String fullName, {String? phoneNumber}) async {}
+
+  @override
+  Future<String?> uploadAvatar(io.File avatar) async => null;
+
+  @override
+  Future<void> saveFcmToken(String token) async {}
 }
 
 class FakeAuthNotifier extends AuthNotifier {

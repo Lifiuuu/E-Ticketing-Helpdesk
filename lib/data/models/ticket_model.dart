@@ -4,9 +4,11 @@ class TicketModel {
   final String title;
   final String? description;
   final String status;      // Status: Open, In Progress, Resolved, Closed
-  final String? imageUrl;   // Sesuai kolom image_url untuk upload laporan
+  final String? imageUrl;   // Legacy field — tiket lama; tiket baru pakai tabel ticket_attachments
   final DateTime createdAt;
   final String? assignedTo; // UUID dari profil petugas
+  final String? reporterId; // UUID pelapor (diisi jika Helpdesk/Admin yang buat tiket)
+  final bool isDeleted;     // Soft delete (FR-016)
 
   TicketModel({
     required this.id,
@@ -17,6 +19,8 @@ class TicketModel {
     this.imageUrl,
     required this.createdAt,
     this.assignedTo,
+    this.reporterId,
+    this.isDeleted = false,
   });
 
   factory TicketModel.fromJson(Map<String, dynamic> json) {
@@ -29,6 +33,8 @@ class TicketModel {
       imageUrl: json['image_url'],
       createdAt: DateTime.parse(json['created_at']),
       assignedTo: json['assigned_to'],
+      reporterId: json['reporter_id']?.toString(),
+      isDeleted: json['is_deleted'] == true,
     );
   }
 
@@ -40,6 +46,8 @@ class TicketModel {
       'status': status,
       'image_url': imageUrl,
       'assigned_to': assignedTo,
+      'reporter_id': reporterId,
+      'is_deleted': isDeleted,
     };
   }
-}
+}

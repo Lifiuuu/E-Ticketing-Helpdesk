@@ -1,69 +1,214 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:projectmobile/core/providers/auth_provider.dart';
-import 'package:projectmobile/core/providers/theme_provider.dart';
+import 'package:projectmobile/data/providers/provider.dart';
 
-class ProfileScreen extends ConsumerWidget {
+class ProfileScreen extends ConsumerStatefulWidget {
   const ProfileScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    // Ambil data profile dari provider
+  ConsumerState<ProfileScreen> createState() => _ProfileScreenState();
+}
+
+class _ProfileScreenState extends ConsumerState<ProfileScreen> {
+  final _formKey = GlobalKey<FormState>();
+  late TextEditingController _nameCtl;
+  late TextEditingController _phoneCtl;
+  bool _loading = false;
+  File? _avatarFile; // file lokal sebelum diupload
+
+  @override
+  void initState() {
+    super.initState();
+    final auth = ref.read(authNotifierProvider);
+    _nameCtl = TextEditingController(text: auth.username ?? '');
+    _phoneCtl = TextEditingController(text: auth.phoneNumber ?? '');
+  }
+
+  @override
+  void dispose() {
+    _nameCtl.dispose();
+    _phoneCtl.dispose();
+    super.dispose();
+  }
+
+  Future<void> _pickAvatar() async {
+    final picker = ImagePicker();
+    final result = await showModalBottomSheet<ImageSource>(
+      context: context,
+      builder: (ctx) => SafeArea(
+        child: Wrap(
+          children: [
+            ListTile(
+              leading: const Icon(Icons.photo_camera),
+              title: const Text('Kamera'),
+              onTap: () => Navigator.of(ctx).pop(ImageSource.camera),
+            ),
+            ListTile(
+              leading: const Icon(Icons.photo_library),
+              title: const Text('Galeri'),
+              onTap: () => Navigator.of(ctx).pop(ImageSource.gallery),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (result == null) return;
+    final picked = await picker.pickImage(source: result, maxWidth: 800, imageQuality: 85);
+    if (picked == null) return;
+    setState(() => _avatarFile = File(picked.path));
+  }
+
+  Future<void> _save() async {
+    if (!_formKey.currentState!.validate()) return;
+    setState(() => _loading = true);
+    try {
+      final repo = ref.read(authRepoProvider);
+
+      // Upload avatar jika ada file baru
+      if (_avatarFile != null) {
+        await repo.uploadAvatar(_avatarFile!);
+      }
+
+      // Update nama & telepon
+      await repo.updateProfile(
+        _nameCtl.text.trim(),
+        phoneNumber: _phoneCtl.text.trim().isEmpty ? null : _phoneCtl.text.trim(),
+      );
+
+      // Refresh state auth agar username terbaru langsung tampil
+      // Trigger re-read dari Supabase
+      // Cukup invalidate agar notifier reload profile
+      ref.invalidate(profileProvider);
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Profil berhasil disimpan')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Gagal menyimpan: $e')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final auth = ref.watch(authNotifierProvider);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Profile')),
-      body: Padding(
+      appBar: AppBar(title: const Text('Profil')),
+      body: SingleChildScrollView(
         padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Center(child: CircleAvatar(radius: 50, child: Icon(Icons.person, size: 50))),
-            const SizedBox(height: 20),
-            Text('Nama Lengkap: ${auth.username ?? '-'}', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-            const SizedBox(height: 8),
-            Text('Email: ${auth.user?.email ?? '-'}', style: const TextStyle(fontSize: 16)),
-            const SizedBox(height: 8),
-            Text('Role: ${auth.role}', style: const TextStyle(fontSize: 16, color: Colors.blueGrey)),
-            const Spacer(),
-            // Theme mode switch
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                const Text('Light'),
-                const SizedBox(width: 8),
-                Consumer(
-                  builder: (context, ref, _) {
-                    final mode = ref.watch(themeModeProvider);
-                    final isDark = mode == ThemeMode.dark;
-                    return Switch(
-                      value: isDark,
-                      onChanged: (v) {
-                        if (v) {
-                          ref.read(themeModeProvider.notifier).setDark();
-                        } else {
-                          ref.read(themeModeProvider.notifier).setLight();
-                        }
-                      },
-                    );
-                  },
+        child: Form(
+          key: _formKey,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              // === Avatar ===
+              GestureDetector(
+                onTap: _pickAvatar,
+                child: Stack(
+                  children: [
+                    CircleAvatar(
+                      radius: 52,
+                      backgroundColor: Colors.grey.shade200,
+                      backgroundImage: _avatarFile != null
+                          ? FileImage(_avatarFile!) as ImageProvider
+                          : (auth.avatarUrl != null
+                              ? NetworkImage(auth.avatarUrl!) as ImageProvider
+                              : null),
+                      child: (_avatarFile == null && auth.avatarUrl == null)
+                          ? const Icon(Icons.person, size: 52, color: Colors.grey)
+                          : null,
+                    ),
+                    Positioned(
+                      right: 0,
+                      bottom: 0,
+                      child: Container(
+                        padding: const EdgeInsets.all(4),
+                        decoration: BoxDecoration(
+                          color: Theme.of(context).colorScheme.primary,
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(Icons.camera_alt, size: 16, color: Colors.white),
+                      ),
+                    ),
+                  ],
                 ),
-                const SizedBox(width: 8),
-                const Text('Dark'),
-              ],
-            ),
-            const SizedBox(height: 16),
-            ElevatedButton(
-              style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-              onPressed: () {
-                ref.read(authNotifierProvider.notifier).logout();
-                context.go('/login');
-              },
-              child: const Text('Keluar Aplikasi', style: TextStyle(color: Colors.white)),
-            ),
-            const SizedBox(height: 20),
-          ],
+              ),
+              const SizedBox(height: 8),
+              Text(
+                auth.role,
+                style: TextStyle(
+                  color: Theme.of(context).colorScheme.primary,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                auth.user?.email ?? '—',
+                style: const TextStyle(color: Colors.grey, fontSize: 13),
+              ),
+
+              const SizedBox(height: 24),
+
+              // === Nama Lengkap ===
+              TextFormField(
+                controller: _nameCtl,
+                decoration: const InputDecoration(
+                  labelText: 'Nama Lengkap',
+                  prefixIcon: Icon(Icons.person_outline),
+                ),
+                validator: (v) => (v == null || v.trim().isEmpty) ? 'Nama wajib diisi' : null,
+              ),
+              const SizedBox(height: 12),
+
+              // === Email (read-only) ===
+              TextFormField(
+                initialValue: auth.user?.email ?? '—',
+                readOnly: true,
+                decoration: const InputDecoration(
+                  labelText: 'Email',
+                  prefixIcon: Icon(Icons.email_outlined),
+                  suffixIcon: Icon(Icons.lock_outline, size: 16, color: Colors.grey),
+                ),
+                style: const TextStyle(color: Colors.grey),
+              ),
+              const SizedBox(height: 12),
+
+              // === Nomor Telepon ===
+              TextFormField(
+                controller: _phoneCtl,
+                decoration: const InputDecoration(
+                  labelText: 'Nomor Telepon',
+                  hintText: 'Opsional',
+                  prefixIcon: Icon(Icons.phone_outlined),
+                ),
+                keyboardType: TextInputType.phone,
+              ),
+              const SizedBox(height: 24),
+
+              // === Simpan ===
+              _loading
+                  ? const Center(child: CircularProgressIndicator())
+                  : SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton.icon(
+                        onPressed: _save,
+                        icon: const Icon(Icons.save_outlined),
+                        label: const Text('Simpan Perubahan'),
+                      ),
+                    ),
+            ],
+          ),
         ),
       ),
     );

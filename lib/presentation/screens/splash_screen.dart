@@ -55,12 +55,12 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
       body: Center(
         child: Column(
           mainAxisSize: MainAxisSize.min,
-          children: const [
-            FlutterLogo(size: 96), // Kamu bisa ganti dengan logo E-Ticketing
-            SizedBox(height: 16),
-            Text('E-Ticketing Helpdesk', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
-            SizedBox(height: 8),
-            CircularProgressIndicator(), // Indikator loading
+          children: [
+            Image.asset('lib/assets/logo_e-ticketing.png', width: 96),
+            const SizedBox(height: 16),
+            const Text('E-Ticketing Helpdesk', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 8),
+            const CircularProgressIndicator(), // Indikator loading
           ],
         ),
       ),

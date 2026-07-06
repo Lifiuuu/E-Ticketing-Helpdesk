@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:projectmobile/data/repositories/auth_repository.dart';
 import 'package:projectmobile/core/providers/supabase_provider.dart';
+import 'package:projectmobile/core/notification/fcm_service.dart';
 
 // 1. STATE CLASS: Menampung data auth yang sedang aktif
 class AuthState {
@@ -11,6 +12,9 @@ class AuthState {
   final String role; // 'User', 'Admin', atau 'Helpdesk'
   final bool isLoading;
   final String? error;
+  final bool isActive;
+  final String? phoneNumber;
+  final String? avatarUrl;
 
   AuthState({
     this.user,
@@ -18,6 +22,9 @@ class AuthState {
     this.role = 'User',
     this.isLoading = false,
     this.error,
+    this.isActive = true,
+    this.phoneNumber,
+    this.avatarUrl,
   });
 
   AuthState copyWith({
@@ -26,6 +33,9 @@ class AuthState {
     String? role,
     bool? isLoading,
     String? error,
+    bool? isActive,
+    String? phoneNumber,
+    String? avatarUrl,
   }) {
     return AuthState(
       user: user ?? this.user,
@@ -33,6 +43,9 @@ class AuthState {
       role: role ?? this.role,
       isLoading: isLoading ?? this.isLoading,
       error: error ?? this.error,
+      isActive: isActive ?? this.isActive,
+      phoneNumber: phoneNumber ?? this.phoneNumber,
+      avatarUrl: avatarUrl ?? this.avatarUrl,
     );
   }
 }
@@ -41,9 +54,14 @@ class AuthState {
 class AuthNotifier extends StateNotifier<AuthState> {
   final AuthRepoInterface _repo;
   final SupabaseClient? _supabase;
+  FcmService? _fcmService;
+  final Ref? ref;
 
-  AuthNotifier(this._repo, this._supabase, {bool skipInit = false}) : super(AuthState()) {
+  AuthNotifier(this._repo, this._supabase, {this.ref, bool skipInit = false}) : super(AuthState()) {
     if (!skipInit) {
+      _fcmService = FcmService(_supabase!, ref: ref);
+      // WAJIB panggil initialize() agar background/foreground listener aktif!
+      _fcmService?.initialize();
       _init();
     }
   }
@@ -86,6 +104,9 @@ class AuthNotifier extends StateNotifier<AuthState> {
         user: user,
         username: profile.fullName,
         role: profile.role,
+        isActive: profile.isActive,
+        phoneNumber: profile.phoneNumber,
+        avatarUrl: profile.avatarUrl,
         isLoading: false,
         error: null,
       );
@@ -119,12 +140,14 @@ class AuthNotifier extends StateNotifier<AuthState> {
       if (user != null) {
         await _refreshProfile(user);
         
-        // --- TAMBAHKAN PENGECEKAN INI ---
-        // Jika setelah direfresh user masih null (karena profil tidak ada di DB)
         if (state.user == null) {
-          return false; // Laporkan ke UI bahwa login GAGAL secara sistem
+          return false;
         }
-        return true; // Benar-benar sukses
+
+        // Simpan FCM token setelah login berhasil
+        await _fcmService?.refreshAndSaveToken();
+
+        return true;
         
       } else {
         state = state.copyWith(isLoading: false, error: 'Login gagal: sesi tidak ditemukan');
@@ -186,6 +209,8 @@ class AuthNotifier extends StateNotifier<AuthState> {
 
   // FR-002: Logout
   void logout() {
+    // Hapus FCM token dari Supabase saat logout
+    _fcmService?.clearToken();
     _repo.signOut();
     state = AuthState();
   }
@@ -200,5 +225,5 @@ final authNotifierProvider = StateNotifierProvider<AuthNotifier, AuthState>((ref
   final supabase = ref.watch(supabaseProvider);
   // Pastikan kamu sudah buat authRepoProvider di lib/data/providers.dart
   final repo = AuthRepository(supabase);
-  return AuthNotifier(repo, supabase);
+  return AuthNotifier(repo, supabase, ref: ref);
 });

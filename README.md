@@ -26,7 +26,7 @@ Aplikasi mobile Flutter untuk sistem e-ticketing helpdesk yang memungkinkan peng
 - **Nama Aplikasi**: E-Ticketing Helpdesk
 - **Platform Target**: Android, iOS, Web, Windows, macOS, Linux
 - **Flutter SDK**: ^3.11.0
-- **Status**: Development (Version 1.0.0+1)
+- **Status**: Development (Version **2.1.0**)
 - **Publish**: Tidak dipublikasikan (Private Package)
 - **Type**: Multi-platform mobile application dengan role-based access control
 
@@ -48,12 +48,13 @@ Aplikasi mobile Flutter untuk sistem e-ticketing helpdesk yang memungkinkan peng
    - **Buat Tiket** (FR-005): User dapat membuat tiket support dengan:
      - Judul tiket (required)
      - Deskripsi detail (required)
-     - Lampiran/Gambar (optional)
+     - Lampiran/File (gambar, pdf, doc, dll - maksimal 5 file) (optional)
      - Status awal: Open
    - **Lihat Daftar Tiket** (FR-010): 
      - **User**: Hanya melihat tiket miliknya sendiri
      - **Helpdesk**: Hanya melihat tiket yang di-assign ke mereka
-     - **Admin**: Melihat semua tiket
+     - **Admin**: Melihat semua tiket (Dapat difilter berdasarkan Petugas Helpdesk melalui Bottom Sheet Pencarian interaktif)
+     - **Hapus Massal (Multi-select Delete)**: Menghapus tiket dengan mode multi-select via *long press*
      - Sorted by created_at (terbaru pertama)
    - **Detail Tiket** (FR-006): 
      - Tampilkan informasi tiket lengkap
@@ -82,13 +83,22 @@ Aplikasi mobile Flutter untuk sistem e-ticketing helpdesk yang memungkinkan peng
      - Sorted by created_at (terbaru pertama)
    - **Mark as Read**: User dapat menandai notifikasi sebagai sudah dibaca
    - **Delete Notification**: User dapat menghapus notifikasi
-   - **Push Notification Service** (FR-008): Menggunakan PostgreSQL real-time subscription
+   - **Soft Delete Tiket** (BR-002): Admin dapat menghapus tiket dari sistem secara logic (`is_deleted` = true) untuk menjaga konsistensi audit trail riwayat tiket.
+   - **Push Notification Service** (FR-008): 
+     - Terintegrasi penuh dengan **Firebase Cloud Messaging (FCM)** untuk push notification di level sistem/OS (terima notifikasi walaupun aplikasi ditutup).
+     - Menggunakan **Supabase Edge Functions** (`send-push-notification`) yang dipicu otomatis oleh webhook database PostgreSQL (Database Webhooks) setiap ada notifikasi baru di tabel `notifications`.
+     - Notifikasi langsung me-refresh state badge dan data aplikasi saat user membukanya, baik dari background maupun foreground.
 
-### 5. **Profile Management**
+### 5. **Profile Management** *(Diperluas)*
    - **Lihat Profile**: User dapat melihat informasi profil mereka:
      - Nama Lengkap (Full Name)
-     - Email
+     - Email (read-only)
      - Role
+     - Nomor Telepon (opsional)
+   - **Edit Profil**: User dapat mengubah:
+     - Nama Lengkap
+     - Nomor Telepon
+     - **Foto Avatar**: Upload foto profil dari Kamera atau Galeri (disimpan di Supabase Storage)
    - **Update Password**: User dapat mengubah password melalui fitur reset password
    - **Logout**: User dapat keluar dari aplikasi
 
@@ -96,6 +106,7 @@ Aplikasi mobile Flutter untuk sistem e-ticketing helpdesk yang memungkinkan peng
    - **Overview Statistik**:
      - Total tiket
      - Tiket terbuka (Open)
+     - Tiket ditugaskan (Assigned)
      - Tiket sedang diproses (In Progress)
      - Tiket selesai (Closed/Resolved)
    - **Quick Actions**:
@@ -103,6 +114,31 @@ Aplikasi mobile Flutter untuk sistem e-ticketing helpdesk yang memungkinkan peng
      - Akses ke profile
      - Akses ke notifikasi
    - **Pull-to-Refresh**: User dapat refresh data dengan menarik dari bawah
+
+### 7. **Manajemen Pengguna (User Management)** *(Baru - Admin Only)*
+   - Halaman khusus **Admin** untuk mengelola semua pengguna terdaftar
+   - **Lihat Daftar Pengguna**: Tampilkan semua user dengan nama, email, role, dan status aktif
+   - **Ubah Role**: Admin dapat mengubah role pengguna (User / Helpdesk / Admin) via popup menu
+   - **Toggle Aktif/Nonaktif**: Admin dapat menonaktifkan atau mengaktifkan kembali akun pengguna
+   - **Proteksi Self-Edit**: Admin tidak dapat mengubah role atau menonaktifkan akun sendiri
+   - Avatar user ditampilkan dengan inisial atau foto profil jika ada
+   - Route: `/users` (dilindungi, hanya Admin)
+
+### 8. **Tracking Riwayat Tiket (Ticket History)** *(Baru)*
+   - Tampilkan riwayat perubahan tiket secara kronologis dalam bentuk **timeline**
+   - Mencatat setiap perubahan:
+     - **Perubahan Status**: Open → In Progress → Resolved → Closed
+     - **Perubahan Assignee**: siapa yang ditugaskan
+   - Menampilkan: waktu perubahan, field yang berubah, nilai lama → nilai baru, dan nama user yang mengubah
+   - Data diisi otomatis oleh **PostgreSQL Trigger** (`on_ticket_update`) ke tabel `ticket_history`
+   - Route: `/ticket/:id/tracking`
+
+### 9. **Pengaturan Aplikasi (Settings)** *(Baru)*
+   - **Mode Gelap/Terang**: Toggle dark mode yang disimpan persisten menggunakan `SharedPreferences`
+   - **Akses Profil**: Shortcut ke halaman profil
+   - **Keluar Akun**: Tombol logout dengan konfirmasi dialog
+   - **Informasi Aplikasi**: Versi aplikasi dan informasi developer
+   - Route: `/settings`
 
 ---
 
@@ -124,12 +160,17 @@ Aplikasi mobile Flutter untuk sistem e-ticketing helpdesk yang memungkinkan peng
 - Material Design 3: Built-in dengan Flutter
 
 ### Utilities
-- **image_picker** (^1.1.1): Untuk memilih dan mengambil gambar dari device
+- **file_picker** (^11.0.2): Untuk memilih semua jenis file (gambar, pdf, dokumen) dari device
+- **image_picker** (^1.1.1): Untuk mengambil gambar dari kamera/galeri
 - **intl** (^0.20.2): Untuk formatting tanggal, waktu, dan lokalisasi
 - **path** (^1.8.3): Untuk manipulasi path file
+- **shared_preferences** (^2.1.1): Untuk menyimpan preferensi user secara lokal (tema dark/light)
+- **flutter_local_notifications** (^18.0.1): Untuk menampilkan notifikasi lokal pada perangkat saat foreground (dipadukan dengan FCM)
+- **firebase_core** (^3.6.0) & **firebase_messaging** (^15.1.3): Untuk integrasi push notification Firebase Cloud Messaging (FCM)
 
 ### Development
 - **flutter_lints** (^6.0.0): Lint rules untuk code quality
+- **flutter_launcher_icons** (^0.14.4): Auto-generate app icons untuk semua platform Android dan iOS
 
 ### Build & Compilation
 - **gradle** (Android): Build automation tool (konfigurasi di android/build.gradle.kts)
@@ -148,24 +189,29 @@ lib/
 │   ├── providers/
 │   │   ├── router_provider.dart          # Go Router configuration & routing logic
 │   │   ├── auth_provider.dart            # Auth state management (AuthNotifier)
-│   │   └── supabase_provider.dart        # Supabase client instance provider
+│   │   ├── supabase_provider.dart        # Supabase client instance provider
+│   │   └── theme_provider.dart           # [NEW] Dark/Light theme state dengan SharedPreferences
 │   ├── theme/
 │   │   └── theme.dart                    # Light & Dark theme configuration
 │   ├── notification/
-│   │   ├── notification_service.dart     # Real-time notification service
-│   │   └── notification_banner.dart      # Notification UI banner widget
+│   │   ├── notification_service.dart     # General local notification initialization
+│   │   └── fcm_service.dart              # Firebase Cloud Messaging handler (token & listeners)
 │   └── utils/
 │       └── date_formatter.dart           # Utility untuk format tanggal
 ├── data/
 │   ├── models/
 │   │   ├── ticket_model.dart            # Tiket data model dengan fromJson & toJson
-│   │   ├── profile_model.dart           # User profile model
+│   │   ├── profile_model.dart           # User profile model (+ isActive, phoneNumber, avatarUrl, email)
 │   │   ├── comment_model.dart           # Comment data model
-│   │   └── notification_model.dart      # Notification data model
+│   │   ├── notification_model.dart      # Notification data model
+│   │   ├── ticket_attachment_model.dart # [NEW] Model lampiran tiket (dari tabel ticket_attachments)
+│   │   └── ticket_history_model.dart    # [NEW] Model riwayat perubahan tiket
 │   ├── repositories/
-│   │   ├── auth_repository.dart         # Auth business logic (sign in, sign up, logout)
-│   │   ├── ticket_repository.dart       # Ticket CRUD & operations
-│   │   └── notification_repository.dart # Notification operations
+│   │   ├── auth_repository.dart         # Auth business logic (sign in, sign up, logout, update profile)
+│   │   ├── ticket_repository.dart       # Ticket CRUD & operations (+ multi-attachment, reporter)
+│   │   ├── notification_repository.dart # Notification operations
+│   │   ├── history_repository.dart      # [NEW] Ambil riwayat perubahan tiket dari ticket_history
+│   │   └── user_repository.dart         # [NEW] Manajemen pengguna oleh Admin (get all, update role, toggle active)
 │   └── providers/
 │       └── provider.dart                # Riverpod providers untuk state management
 ├── presentation/
@@ -176,13 +222,17 @@ lib/
 │   │   ├── reset_password_screen.dart   # Password reset request page
 │   │   ├── update_password_screen.dart  # Password reset completion page
 │   │   ├── dashboard_screen.dart        # Main dashboard dengan statistik
-│   │   ├── profile_screen.dart          # User profile page
+│   │   ├── profile_screen.dart          # User profile page (+ edit nama, telepon, avatar)
 │   │   ├── tickets_list_screen.dart     # List of tickets
-│   │   ├── create_ticket_screen.dart    # Create new ticket page
+│   │   ├── create_ticket_screen.dart    # Create new ticket page (+ multi-attachment, pilih pelapor)
 │   │   ├── ticket_detail_screen.dart    # Ticket detail & comments
-│   │   └── notifications_screen.dart    # Notifications list page
+│   │   ├── notifications_screen.dart    # Notifications list page
+│   │   ├── tracking_ticket_screen.dart  # [NEW] Riwayat perubahan tiket (timeline)
+│   │   ├── user_management_screen.dart  # [NEW] Kelola pengguna (Admin only)
+│   │   └── settings_screen.dart         # [NEW] Pengaturan aplikasi (tema, profil, logout)
 │   └── widgets/
-│       └── bottom_refresh_listener.dart # Custom widget untuk pull-to-refresh
+│       ├── bottom_refresh_listener.dart # Custom widget untuk pull-to-refresh
+│       └── attachment_grid.dart         # [NEW] Grid preview lampiran tiket
 ├── android/                             # Android native code & build config
 ├── ios/                                 # iOS native code & build config
 ├── linux/                               # Linux native code & build config
@@ -229,12 +279,16 @@ class TicketModel {
 }
 ```
 
-### 2. **ProfileModel**
+### 2. **ProfileModel** *(Diperluas)*
 ```dart
 class ProfileModel {
   final String id;              // User ID dari auth.users
   final String? fullName;       // Nama lengkap user
   final String role;            // Role: User, Helpdesk, Admin
+  final bool isActive;          // Status aktif akun (default: true)
+  final String? phoneNumber;    // Nomor telepon (opsional)
+  final String? avatarUrl;      // URL foto profil di Supabase Storage
+  final String? email;          // Email user (dari profiles atau auth)
 }
 ```
 
@@ -264,7 +318,35 @@ class NotificationModel {
 }
 ```
 
-### 5. **AuthState** (State Management)
+### 5. **TicketAttachmentModel** *(Baru)*
+```dart
+class TicketAttachmentModel {
+  final String id;              // UUID lampiran
+  final String ticketId;        // ID tiket terkait
+  final String fileUrl;         // URL publik file di Supabase Storage
+  final String? fileName;       // Nama file asli
+  final int? fileSize;          // Ukuran file dalam bytes
+  final DateTime createdAt;     // Waktu upload
+}
+```
+
+### 6. **TicketHistoryModel** *(Baru)*
+```dart
+class TicketHistoryModel {
+  final String id;              // UUID entri history
+  final String ticketId;        // ID tiket yang berubah
+  final String? changedBy;      // UUID user yang melakukan perubahan
+  final String fieldChanged;    // Field yang berubah: 'status', 'assigned_to', dst.
+  final String? oldValue;       // Nilai sebelum perubahan
+  final String? newValue;       // Nilai setelah perubahan
+  final DateTime createdAt;     // Waktu perubahan
+  
+  // Human-readable label
+  String get fieldLabel { ... } // 'Status', 'Assignee', dst.
+}
+```
+
+### 7. **AuthState** (State Management)
 ```dart
 class AuthState {
   final User? user;             // Supabase User object
@@ -272,6 +354,8 @@ class AuthState {
   final String role;            // Role user
   final bool isLoading;         // Loading indicator
   final String? error;          // Error message
+  final String? phoneNumber;    // Nomor telepon user
+  final String? avatarUrl;      // URL foto profil user
 }
 ```
 
@@ -298,8 +382,9 @@ class AuthState {
 
 4. **Create Ticket**: User membuat tiket baru
    - Input: Title (required), Description (required)
-   - Optional: Upload attachment/gambar
-   - File di-upload ke Supabase Storage
+   - Optional: **Upload hingga 5 lampiran gambar** (kamera atau galeri)
+   - Lampiran di-upload ke Supabase Storage (tabel `ticket_attachments`)
+   - **Helpdesk/Admin** wajib memilih **pelapor (user)** dari dropdown saat membuat tiket atas nama user
    - Tiket disimpan dengan status "Open"
    - Auto-refresh tickets list
 
@@ -359,7 +444,8 @@ GoRouter redirect ke dashboard
 
 | Feature | User | Helpdesk | Admin |
 |---------|------|----------|-------|
-| Buat Tiket | ✅ | ❌ | ❌ |
+| Buat Tiket (atas nama sendiri) | ✅ | ❌ | ❌ |
+| **Buat Tiket atas nama User** | ❌ | ✅ | ✅ |
 | Lihat Tiket Milik Sendiri | ✅ | ❌ | ❌ |
 | Lihat Tiket Assign ke Mereka | ❌ | ✅ | ❌ |
 | Lihat Semua Tiket | ❌ | ❌ | ✅ |
@@ -367,6 +453,10 @@ GoRouter redirect ke dashboard
 | **Assign Tiket** | ❌ | ❌ | ✅ |
 | Comment Tiket | ✅ | ✅ | ✅ |
 | Lihat Notifications | ✅ | ✅ | ✅ |
+| **Kelola Pengguna (User Management)** | ❌ | ❌ | ✅ |
+| **Tracking Riwayat Tiket** | ✅ | ✅ | ✅ |
+| **Ubah Role Pengguna** | ❌ | ❌ | ✅ |
+| **Nonaktifkan Pengguna** | ❌ | ❌ | ✅ |
 
 ### **Password Reset Flow**
 
@@ -406,6 +496,10 @@ await Supabase.initialize(
    id (UUID, PK, FK to auth.users)
    full_name (text)
    role (text) CHECK (role IN ('User', 'Helpdesk', 'Admin'))
+   is_active (boolean, default true) -- Status aktif akun
+   phone_number (text, nullable)     -- Nomor telepon
+   avatar_url (text, nullable)       -- URL foto profil di Supabase Storage
+   email (text, nullable)            -- Email (sinkron dari auth.users)
    created_at (timestamp)
    ```
 
@@ -416,7 +510,7 @@ await Supabase.initialize(
    title (text)
    description (text)
    status (text) CHECK (status IN ('Open', 'In Progress', 'Resolved', 'Closed'))
-   image_url (text)
+   image_url (text)              -- legacy, digantikan ticket_attachments
    assigned_to (UUID, FK to profiles)
    created_at (timestamp)
    ```
@@ -439,6 +533,28 @@ await Supabase.initialize(
    ticket_id (UUID, FK to tickets, nullable)
    is_read (boolean)
    created_at (timestamp)
+   ```
+
+6. **ticket_attachments** (Custom table) *(Baru)*
+   ```sql
+   id (UUID, PK)
+   ticket_id (UUID, FK to tickets)
+   file_url (text)               -- URL publik di Supabase Storage
+   file_name (text, nullable)    -- Nama file asli
+   file_size (integer, nullable) -- Ukuran file dalam bytes
+   created_at (timestamp)
+   ```
+
+7. **ticket_history** (Custom table) *(Baru)*
+   ```sql
+   id (UUID, PK)
+   ticket_id (UUID, FK to tickets)
+   changed_by (UUID, FK to profiles, nullable) -- User yang melakukan perubahan
+   field_changed (text)          -- Field yang berubah: 'status', 'assigned_to', dst.
+   old_value (text, nullable)    -- Nilai sebelum perubahan
+   new_value (text, nullable)    -- Nilai sesudah perubahan
+   created_at (timestamp)
+   -- Diisi otomatis oleh PostgreSQL Trigger: on_ticket_update
    ```
 
 #### **Storage Buckets**
@@ -540,6 +656,36 @@ final ticketsStreamProvider = FutureProvider.autoDispose<List<dynamic>>((ref) as
 final helpdeskUsersProvider = FutureProvider.autoDispose<List<ProfileModel>>((ref) {
   final repo = ref.watch(authRepoProvider);
   return repo.getHelpdeskUsers();
+});
+
+// Daftar admin (untuk notifikasi)
+final adminUsersProvider = FutureProvider.autoDispose<List<ProfileModel>>((ref) {
+  final repo = ref.watch(authRepoProvider);
+  return repo.getAdminUsers();
+});
+
+// Daftar semua pengguna (untuk User Management screen)
+final userListProvider = FutureProvider.autoDispose<List<ProfileModel>>((ref) {
+  final repo = ref.watch(userRepoProvider);
+  return repo.getAllUsers();
+});
+
+// Dropdown pelapor: user aktif dengan role 'User' (untuk Helpdesk/Admin create ticket)
+final userListForDropdownProvider = FutureProvider.autoDispose<List<ProfileModel>>((ref) {
+  final repo = ref.watch(userRepoProvider);
+  return repo.getUsersWithRoleUser();
+});
+
+// History perubahan tiket per ticketId
+final ticketHistoryProvider = FutureProvider.autoDispose.family<List<TicketHistoryModel>, String>((ref, ticketId) {
+  final repo = ref.watch(historyRepoProvider);
+  return repo.getTicketHistory(ticketId);
+});
+
+// Lampiran tiket per ticketId
+final attachmentsProvider = FutureProvider.autoDispose.family<List<TicketAttachmentModel>, String>((ref, ticketId) {
+  final repo = ref.watch(ticketRepoProvider);
+  return repo.getAttachments(ticketId);
 });
 
 // Usage: ref.watch(ticketsStreamProvider) → AsyncValue<List<dynamic>>
@@ -650,11 +796,14 @@ GoRouter(
 | `/reset` | ResetPasswordScreen | Guest | Reset password request |
 | `/reset-callback` | UpdatePasswordScreen | Guest | Reset password completion |
 | `/dashboard` | DashboardScreen | Authenticated | Main dashboard |
-| `/profile` | ProfileScreen | Authenticated | User profile |
+| `/profile` | ProfileScreen | Authenticated | User profile (edit nama, telepon, avatar) |
 | `/notifications` | NotificationsScreen | Authenticated | Notifications list |
 | `/tickets` | TicketsListScreen | Authenticated | Tickets list |
-| `/create-ticket` | CreateTicketScreen | User | Create new ticket |
+| `/create-ticket` | CreateTicketScreen | Authenticated | Create new ticket (+ pilih pelapor) |
 | `/ticket/:id` | TicketDetailScreen | Authenticated | Ticket details |
+| `/ticket/:id/tracking` | TrackingTicketScreen | Authenticated | **[Baru]** Riwayat perubahan tiket |
+| `/users` | UserManagementScreen | Admin only | **[Baru]** Kelola pengguna |
+| `/settings` | SettingsScreen | Authenticated | **[Baru]** Pengaturan aplikasi |
 
 #### **Navigation Examples**
 
@@ -723,6 +872,9 @@ class AppThemes {
 4. **Notification Badge**: Red circular badge di notification icon
 5. **Forms**: Validation feedback dengan error messages
 6. **Refresh**: Pull-to-refresh listener di dashboard & tickets list
+7. **Role Badge**: Badge warna berbeda untuk setiap role (Admin=merah, Helpdesk=oranye, User=biru)
+8. **Active Badge**: Badge Aktif/Nonaktif di User Management screen
+9. **Timeline**: Visual timeline entry di Tracking screen
 
 #### **Custom Widgets**
 
@@ -742,6 +894,10 @@ class BottomRefreshListener extends StatelessWidget {
 
 // NotificationBanner: Floating notification display
 // Dipetik ketika ada status change atau action event
+
+// AttachmentGrid: Grid preview lampiran tiket [NEW]
+// Digunakan di CreateTicketScreen & TicketDetailScreen
+// Menampilkan thumbnail gambar dengan tombol hapus
 ```
 
 ---
@@ -853,6 +1009,10 @@ PROFILES
 ├── id (UUID, PK, FK)
 ├── full_name (text)
 ├── role (enum: User, Helpdesk, Admin)
+├── is_active (boolean, default true)   [NEW]
+├── phone_number (text, nullable)        [NEW]
+├── avatar_url (text, nullable)          [NEW]
+├── email (text, nullable)               [NEW]
 └── created_at
 
 TICKETS
@@ -861,7 +1021,7 @@ TICKETS
 ├── title (text)
 ├── description (text)
 ├── status (enum: Open, In Progress, Resolved, Closed)
-├── image_url (text)
+├── image_url (text)   -- legacy
 ├── assigned_to (UUID, FK)
 └── created_at
 
@@ -880,6 +1040,24 @@ NOTIFICATIONS
 ├── ticket_id (UUID, FK, nullable)
 ├── is_read (boolean)
 └── created_at
+
+TICKET_ATTACHMENTS  [NEW]
+├── id (UUID, PK)
+├── ticket_id (UUID, FK)
+├── file_url (text)
+├── file_name (text, nullable)
+├── file_size (integer, nullable)
+└── created_at
+
+TICKET_HISTORY  [NEW]
+├── id (UUID, PK)
+├── ticket_id (UUID, FK)
+├── changed_by (UUID, FK, nullable)
+├── field_changed (text)
+├── old_value (text, nullable)
+├── new_value (text, nullable)
+└── created_at
+-- Diisi otomatis oleh PostgreSQL Trigger: on_ticket_update
 ```
 
 ---
@@ -894,9 +1072,13 @@ NOTIFICATIONS
 | `supabase_flutter` | ^2.12.4 | Backend & auth |
 | `flutter_riverpod` | ^2.3.6 | State management |
 | `intl` | ^0.20.2 | Date & localization |
-| `image_picker` | ^1.1.1 | Image selection |
+| `image_picker` | ^1.1.1 | Image selection & avatar upload |
 | `path` | ^1.8.3 | Path utilities |
-| `flutter_lints` | ^6.0.0 | Code quality linting |
+| `shared_preferences` | ^2.1.1 | **[NEW]** Simpan preferensi tema lokal |
+| `flutter_local_notifications` | ^18.0.1 | Push notification lokal |
+| `firebase_core` & `firebase_messaging` | latest | Push notification OS via FCM |
+| `flutter_launcher_icons` | ^0.14.4 | (Dev) Auto-generate logo/ikon aplikasi |
+| `flutter_lints` | ^6.0.0 | (Dev) Code quality linting |
 
 ---
 
@@ -908,6 +1090,12 @@ NOTIFICATIONS
 - **Routing**: [lib/core/providers/router_provider.dart](lib/core/providers/router_provider.dart)
 - **State Management**: [lib/data/providers/provider.dart](lib/data/providers/provider.dart)
 - **Theme**: [lib/core/theme/theme.dart](lib/core/theme/theme.dart)
+- **Theme Provider**: [lib/core/providers/theme_provider.dart](lib/core/providers/theme_provider.dart) *(Baru)*
+- **User Management**: [lib/presentation/screens/user_management_screen.dart](lib/presentation/screens/user_management_screen.dart) *(Baru)*
+- **Ticket Tracking**: [lib/presentation/screens/tracking_ticket_screen.dart](lib/presentation/screens/tracking_ticket_screen.dart) *(Baru)*
+- **Settings**: [lib/presentation/screens/settings_screen.dart](lib/presentation/screens/settings_screen.dart) *(Baru)*
+- **History Repo**: [lib/data/repositories/history_repository.dart](lib/data/repositories/history_repository.dart) *(Baru)*
+- **User Repo**: [lib/data/repositories/user_repository.dart](lib/data/repositories/user_repository.dart) *(Baru)*
 - **Screens**: [lib/presentation/screens/](lib/presentation/screens/)
 
 ---
@@ -924,23 +1112,37 @@ NOTIFICATIONS
   - Admin lihat semua tiket
 - ✅ **Admin-only ticket assignment** dengan dropdown Helpdesk list
 - ✅ Real-time notifications & comments
- - ✅ **Admin menerima notifikasi** untuk tiket baru dan semua komentar (monitoring & audit)
- - ✅ **Helpdesk menerima notifikasi** ketika tiket di-assign ke mereka dan ketika ada komentar pada tiket yang mereka tangani
-- ✅ Image upload to Supabase Storage
+  - ✅ **Admin menerima notifikasi** untuk tiket baru dan semua komentar (monitoring & audit)
+  - ✅ **Helpdesk menerima notifikasi** ketika tiket di-assign ke mereka dan ketika ada komentar pada tiket yang mereka tangani
+- ✅ **Multi-attachment upload** (hingga 5 lampiran per tiket) ke tabel `ticket_attachments`
 - ✅ Password reset dengan deep-link support
-- ✅ Dark mode support
+- ✅ **Dark mode** dengan persistensi via `SharedPreferences` (toggle di Settings)
 - ✅ Pull-to-refresh functionality
 - ✅ Notification badge dengan unread count
+- ✅ **User Management** (Admin only): lihat semua user, ubah role, toggle aktif/nonaktif
+- ✅ **Ticket History Tracking**: timeline riwayat perubahan status & assignee via PostgreSQL trigger
+- ✅ **Profile Update**: edit nama, nomor telepon, dan upload foto avatar
+- ✅ **Settings Screen**: toggle dark mode, akses profil, logout
+- ✅ **Helpdesk/Admin dapat membuat tiket** atas nama user (dengan dropdown pilih pelapor)
+- ✅ Integrasi **Firebase Cloud Messaging (FCM)** untuk system-level push notification
+- ✅ **Supabase Edge Functions** (Database Webhooks) untuk mengirim notifikasi push secara otomatis
+- ✅ Kustomisasi **App Name** dan **App Logo** menggunakan `flutter_launcher_icons`
+- ✅ **File Attachment Lengkap** (FR-005): Mendukung lampiran berupa PDF, DOCX, dan format lainnya.
+- ✅ **Soft Delete Tiket** (BR-002): Penghapusan tiket khusus Admin tanpa merusak riwayat tiket.
+- ✅ **Dashboard "Assigned" Stat**: Menampilkan metrik khusus untuk tiket yang telah ditugaskan.
+- ✅ **Helpdesk Filter** (FR-007): Admin dapat menyaring daftar tiket berdasarkan petugas Helpdesk yang menangani.
 
 ### **Potential Improvements**
-- 🔲 Push notifications (FCM for Android, APNs for iOS)
+- 🔲 APNs untuk iOS push notifications (memerlukan Apple Developer Account)
 - 🔲 Offline support dengan local caching
-- 🔲 Advanced search & filtering
-- 🔲 File attachment types (PDF, DOC, etc)
-- 🔲 Ticket priority levels
-- 🔲 SLA tracking & escalation
+- 🔲 Advanced search & filtering tiket
+- 🔲 File attachment types selain gambar (PDF, DOC, etc)
+- 🔲 Ticket priority levels (Low, Medium, High, Critical)
+- 🔲 SLA tracking & escalation otomatis
 - 🔲 Email notifications
-- 🔲 Analytics & reporting
+- 🔲 Analytics & reporting dashboard
+- 🔲 Pagination untuk daftar tiket & notifikasi
+- 🔲 Ekspor laporan tiket (PDF/Excel)
 
 ---
 
@@ -965,33 +1167,97 @@ NOTIFICATIONS
 
 #### **2. Admin-Only Ticket Assignment**
 - Hanya **Admin** yang dapat assign tiket ke Helpdesk
-- Sebelumnya: Admin dan Helpdesk bisa assign
 - UI Change: Dropdown selection dengan Helpdesk list (tidak perlu input ID manual)
 - **New Provider**: `helpdeskUsersProvider` - FutureProvider yang fetch list all Helpdesk users
 - **New Repository Method**: `AuthRepository.getHelpdeskUsers()` - query profiles dengan role = 'Helpdesk'
 - **Updated Screen**: `ticket_detail_screen.dart` - dropdown dialog untuk assign, hanya visible untuk Admin
-- **Database Query**: SELECT * FROM profiles WHERE role = 'Helpdesk' ORDER BY full_name
 
-#### **3. Files Modified**
-- `lib/data/repositories/auth_repository.dart`: Tambah method `getHelpdeskUsers()`
- - `lib/data/repositories/auth_repository.dart`: Tambah method `getHelpdeskUsers()` dan `getAdminUsers()`
-- `lib/data/providers/provider.dart`: Update `ticketsStreamProvider` logic, tambah `helpdeskUsersProvider`
- - `lib/data/providers/provider.dart`: Update `ticketsStreamProvider` logic, tambah `helpdeskUsersProvider` dan `adminUsersProvider`
-- `lib/data/repositories/ticket_repository.dart`: Tambah method `getTicketsAssignedToHelpdesk()`
- - `lib/data/repositories/ticket_repository.dart`: Tambah method `getTicketsAssignedToHelpdesk()` dan update `createTicket()` & `addComment()` untuk mengirim notifikasi kepada Admin serta owner/assignee
-- `lib/presentation/screens/ticket_detail_screen.dart`: Update assign dropdown UI, restrict ke Admin only
-- `test/auth_flow_test.dart`: Update FakeAuthRepo dengan method `getHelpdeskUsers()`
-- `README.md`: Update dokumentasi (file ini)
+#### **3. Admin Notifications**
+- `TicketRepository.createTicket()` mengirim notifikasi ke semua users dengan role `Admin` saat tiket baru dibuat.
+- `TicketRepository.addComment()` menambahkan semua Admin sebagai penerima notifikasi ketika ada komentar baru.
+- `AuthRepository.getAdminUsers()` ditambahkan untuk mengambil daftar Admin dari tabel `profiles`.
 
-#### **4. Admin Notifications (New)**
-- **Tujuan**: Pastikan Admin memantau aktivitas penting (tiket baru & komentar) untuk oversight dan auditing.
-- **Perubahan utama**:
-  - `TicketRepository.createTicket()` sekarang mengirim notifikasi ke semua users dengan role `Admin` saat tiket baru dibuat.
-  - `TicketRepository.addComment()` sekarang juga menambahkan semua Admin sebagai penerima notifikasi ketika ada komentar baru pada tiket.
-  - `AuthRepository.getAdminUsers()` ditambahkan untuk mengambil daftar Admin dari tabel `profiles`.
+---
 
+### **Recent Changes (v2.0.0 Updates)**
+
+#### **1. User Management (Admin)**
+- Halaman baru `/users` untuk Admin mengelola semua pengguna
+- Admin dapat mengubah role (User/Helpdesk/Admin) dan toggle aktif/nonaktif akun
+- **New Files**: `user_management_screen.dart`, `user_repository.dart`
+- **New Providers**: `userRepoProvider`, `userListProvider`
+- **DB Changes**: Kolom `is_active` ditambahkan ke tabel `profiles`
+
+#### **2. Ticket History Tracking**
+- Timeline riwayat perubahan status dan assignee tiket di halaman `/ticket/:id/tracking`
+- Data diisi otomatis oleh **PostgreSQL Trigger** `on_ticket_update` ke tabel `ticket_history`
+- **New Files**: `tracking_ticket_screen.dart`, `history_repository.dart`, `ticket_history_model.dart`
+- **New Providers**: `historyRepoProvider`, `ticketHistoryProvider`
+- **DB Changes**: Tabel baru `ticket_history`
+
+#### **3. Multi-Attachment Upload**
+- Tiket sekarang mendukung hingga **5 lampiran gambar** per tiket
+- Lampiran disimpan di tabel baru `ticket_attachments` (bukan field `image_url` lagi)
+- **New Files**: `ticket_attachment_model.dart`, `attachment_grid.dart` widget
+- **New Providers**: `attachmentsProvider`
+- **DB Changes**: Tabel baru `ticket_attachments`
+
+#### **4. Profile Update**
+- User kini dapat mengedit nama lengkap, nomor telepon, dan foto avatar
+- Avatar diupload ke Supabase Storage
+- **Updated**: `profile_screen.dart`, `auth_repository.dart` (tambah `uploadAvatar()`, `updateProfile(phoneNumber)`)
+- **DB Changes**: Kolom `phone_number`, `avatar_url`, `email` ditambahkan ke tabel `profiles`
+
+#### **5. Settings Screen & Theme Persistence**
+- Halaman pengaturan baru di `/settings` dengan toggle dark/light mode
+- Preferensi tema disimpan persisten menggunakan `SharedPreferences`
+- **New Files**: `settings_screen.dart`, `theme_provider.dart`
+- **New Package**: `shared_preferences ^2.1.1`
+
+#### **6. Helpdesk/Admin Create Ticket**
+- Helpdesk dan Admin kini dapat membuat tiket atas nama user lain
+- Dropdown pilih pelapor (user aktif dengan role 'User') ditambahkan di `create_ticket_screen.dart`
+- **New Provider**: `userListForDropdownProvider`
+
+#### **7. flutter_local_notifications**
+- Package `flutter_local_notifications ^18.0.1` ditambahkan untuk notifikasi lokal
+- **New Package**: `flutter_local_notifications ^18.0.1`
+
+#### **8. Files Added/Modified (v2.0.0)**
+| File | Status | Keterangan |
+|------|--------|------------|
+| `lib/core/providers/theme_provider.dart` | **NEW** | ThemeModeNotifier dengan SharedPreferences |
+| `lib/data/models/ticket_attachment_model.dart` | **NEW** | Model lampiran tiket |
+| `lib/data/models/ticket_history_model.dart` | **NEW** | Model riwayat perubahan tiket |
+| `lib/data/repositories/history_repository.dart` | **NEW** | Ambil ticket_history dari Supabase |
+| `lib/data/repositories/user_repository.dart` | **NEW** | Manajemen pengguna (Admin) |
+| `lib/presentation/screens/settings_screen.dart` | **NEW** | Halaman pengaturan |
+| `lib/presentation/screens/user_management_screen.dart` | **NEW** | Kelola pengguna (Admin only) |
+| `lib/presentation/screens/tracking_ticket_screen.dart` | **NEW** | Timeline riwayat tiket |
+| `lib/presentation/widgets/attachment_grid.dart` | **NEW** | Widget grid preview lampiran |
+| `lib/data/providers/provider.dart` | Modified | Tambah historyRepoProvider, userRepoProvider, ticketHistoryProvider, attachmentsProvider, userListProvider, userListForDropdownProvider |
+| `lib/core/providers/router_provider.dart` | Modified | Tambah route /ticket/:id/tracking, /users, /settings |
+| `lib/data/models/profile_model.dart` | Modified | Tambah isActive, phoneNumber, avatarUrl, email |
+| `lib/presentation/screens/profile_screen.dart` | Modified | Edit nama, telepon, upload avatar |
+| `lib/presentation/screens/create_ticket_screen.dart` | Modified | Multi-attachment, dropdown pelapor |
+| `pubspec.yaml` | Modified | Tambah shared_preferences, flutter_local_notifications |
+
+---
+
+### **Recent Changes (v2.1.0 Updates)**
+
+#### **1. Firebase Cloud Messaging (FCM) Integration**
+- Push notification level OS (sistem) agar notifikasi masuk walaupun aplikasi ditutup/background.
+- Badge dashboard dan stream di-invalidate secara instan jika notifikasi masuk saat aplikasi foreground.
+- **New Files**: `lib/core/notification/fcm_service.dart`.
+- **Packages**: `firebase_core`, `firebase_messaging`.
+- **Backend**: Menggunakan **Supabase Edge Functions** (`send-push-notification`) yang dipicu oleh Webhook ke tabel `notifications`.
+
+#### **2. App Branding & Logo**
+- Merubah nama aplikasi menjadi **E-Ticketing Helpdesk**.
+- Membuat launcher icon (logo aplikasi) otomatis menggunakan package `flutter_launcher_icons`.
 
 ---
 
 **Dibuat untuk: Dokumentasi Laporan Pembuatan Aplikasi E-Ticketing Helpdesk**
-**Last Updated**: April 20, 2026
+**Last Updated**: Juli 3, 2026 (v2.1.0)

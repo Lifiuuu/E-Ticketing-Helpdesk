@@ -1,3 +1,6 @@
+import 'dart:io';
+import 'package:flutter/foundation.dart';
+import 'package:path/path.dart' as p;
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/profile_model.dart';
 
@@ -10,6 +13,9 @@ abstract class AuthRepoInterface {
   Future<ProfileModel?> getProfileById(String id);
   Future<List<ProfileModel>> getHelpdeskUsers();
   Future<List<ProfileModel>> getAdminUsers();
+  Future<void> updateProfile(String fullName, {String? phoneNumber});
+  Future<String?> uploadAvatar(File avatar);
+  Future<void> saveFcmToken(String token);
 }
 
 class AuthRepository implements AuthRepoInterface {
@@ -51,22 +57,20 @@ class AuthRepository implements AuthRepoInterface {
     }
   }
 
-  // Mengambil data profil (Role & Full Name) untuk session saat ini
+  // Mengambil data profil (Role, Full Name, isActive, dll.) untuk session saat ini
   @override
   Future<ProfileModel?> getMyProfile() async {
     final user = _supabase.auth.currentUser;
     if (user == null) return null;
     try {
-      // 1. UBAH .single() MENJADI .maybeSingle()
       final data = await _supabase
           .from('profiles')
           .select()
           .eq('id', user.id)
           .maybeSingle();
 
-      // 2. CEK JIKA DATA KOSONG (0 rows)
       if (data == null) {
-        return null; // Kembalikan null dengan tenang tanpa melempar error
+        return null;
       }
 
       return ProfileModel.fromJson(data);
@@ -116,6 +120,62 @@ class AuthRepository implements AuthRepoInterface {
       return (data as List).map((json) => ProfileModel.fromJson(Map<String, dynamic>.from(json))).toList();
     } catch (e) {
       rethrow;
+    }
+  }
+
+  // Profile Edit: Update nama dan nomor telepon di tabel profiles
+  @override
+  Future<void> updateProfile(String fullName, {String? phoneNumber}) async {
+    final user = _supabase.auth.currentUser;
+    if (user == null) return;
+    try {
+      final updates = <String, dynamic>{'full_name': fullName};
+      if (phoneNumber != null) updates['phone_number'] = phoneNumber;
+      await _supabase.from('profiles').update(updates).eq('id', user.id);
+    } catch (e) {
+      debugPrint('Error updating profile: $e');
+      rethrow;
+    }
+  }
+
+  // Profile Edit: Upload avatar ke Supabase Storage bucket 'avatars', return public URL
+  @override
+  Future<String?> uploadAvatar(File avatar) async {
+    final user = _supabase.auth.currentUser;
+    if (user == null) return null;
+    try {
+      final ext = p.extension(avatar.path).isNotEmpty ? p.extension(avatar.path) : '.jpg';
+      final path = '${user.id}/avatar$ext';
+      const bucket = 'avatars';
+      final bytes = await avatar.readAsBytes();
+      // upsert: overwrite existing avatar
+      await _supabase.storage.from(bucket).uploadBinary(
+        path,
+        bytes,
+        fileOptions: const FileOptions(upsert: true),
+      );
+      final url = _supabase.storage.from(bucket).getPublicUrl(path);
+      // Simpan URL ke tabel profiles
+      await _supabase.from('profiles').update({'avatar_url': url}).eq('id', user.id);
+      return url;
+    } catch (e) {
+      debugPrint('Error uploading avatar: $e');
+      rethrow;
+    }
+  }
+
+  // Simpan FCM token ke kolom fcm_token di tabel profiles
+  @override
+  Future<void> saveFcmToken(String token) async {
+    final user = _supabase.auth.currentUser;
+    if (user == null) return;
+    try {
+      await _supabase
+          .from('profiles')
+          .update({'fcm_token': token})
+          .eq('id', user.id);
+    } catch (e) {
+      debugPrint('Error saving FCM token: $e');
     }
   }
 }

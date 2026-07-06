@@ -4,11 +4,27 @@ import 'package:go_router/go_router.dart';
 // import 'package:projectmobile/data/models/notification_model.dart';
 import 'package:projectmobile/data/providers/provider.dart';
 
-class NotificationsScreen extends ConsumerWidget {
+class NotificationsScreen extends ConsumerStatefulWidget {
   const NotificationsScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<NotificationsScreen> createState() => _NotificationsScreenState();
+}
+
+class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
+  @override
+  void initState() {
+    super.initState();
+    // Otomatis tandai semua notifikasi sebagai telah dibaca saat halaman ini dibuka
+    Future.microtask(() async {
+      await ref.read(notificationRepoProvider).markAllAsRead();
+      // Paksa refresh stream agar badge merah di dashboard langsung hilang
+      ref.invalidate(notificationsStreamProvider);
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final notifsAsync = ref.watch(notificationsStreamProvider);
 
     return Scaffold(
@@ -31,14 +47,7 @@ class NotificationsScreen extends ConsumerWidget {
                   children: [
                     Text(n.timeAgo()),
                     const SizedBox(width: 8),
-                    if (!n.isRead)
-                      IconButton(
-                        icon: const Icon(Icons.mark_email_read),
-                        onPressed: () {
-                          // Mark as read (fire-and-forget) to avoid blocking UI/navigation
-                          ref.read(notificationRepoProvider).markAsRead(n.id);
-                        },
-                      ),
+                    // Tombol tandai sudah dibaca dihapus karena sekarang otomatis terbaca
                     IconButton(
                       icon: const Icon(Icons.delete_outline),
                       onPressed: () async {
@@ -48,10 +57,8 @@ class NotificationsScreen extends ConsumerWidget {
                   ],
                 ),
                 onTap: () async {
-                  // Mark as read when user opens the notification, then navigate
+                  // Navigate to ticket detail
                   final router = GoRouter.of(context);
-                  // Fire-and-forget marking so navigation isn't blocked by network latency
-                  ref.read(notificationRepoProvider).markAsRead(n.id);
                   if (n.ticketId != null && n.ticketId!.isNotEmpty) {
                     router.push('/ticket/${Uri.encodeComponent(n.ticketId!)}');
                   }

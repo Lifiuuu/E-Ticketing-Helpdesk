@@ -1,35 +1,91 @@
-import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../providers/supabase_provider.dart';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:flutter/foundation.dart';
 
-class NotificationService {
-  final SupabaseClient _supabase;
-  
-  NotificationService(this._supabase);
+/// Singleton plugin instance, diinisialisasi di main()
+final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
+    FlutterLocalNotificationsPlugin();
 
-  // Fungsi untuk mendengarkan notifikasi baru secara realtime
-  void listenToNotifications(String userId, Function(String title, String msg) onNewNotification) {
-    _supabase
-        .channel('public:notifications')
-        .onPostgresChanges(
-          event: PostgresChangeEvent.insert,
-          schema: 'public',
-          table: 'notifications',
-          filter: PostgresChangeFilter(
-            type: PostgresChangeFilterType.eq,
-            column: 'user_id',
-            value: userId,
-          ),
-          callback: (payload) {
-            final data = payload.newRecord;
-            onNewNotification(data['title'], data['message']);
-          },
-        )
-        .subscribe();
+/// Android notification channel
+const AndroidNotificationChannel _channel = AndroidNotificationChannel(
+  'eticketing_channel', // id
+  'E-Ticketing Helpdesk', // name
+  description: 'Notifikasi perubahan status tiket dan komentar baru',
+  importance: Importance.high,
+);
+
+/// Inisialisasi plugin — dipanggil di main() sebelum runApp()
+Future<void> initLocalNotifications() async {
+  const initSettingsAndroid = AndroidInitializationSettings('@mipmap/ic_launcher');
+  const initSettingsDarwin = DarwinInitializationSettings(
+    requestAlertPermission: true,
+    requestBadgePermission: true,
+    requestSoundPermission: true,
+  );
+  const initSettings = InitializationSettings(
+    android: initSettingsAndroid,
+    iOS: initSettingsDarwin,
+    macOS: initSettingsDarwin,
+  );
+
+  await flutterLocalNotificationsPlugin.initialize(
+    initSettings,
+    onDidReceiveNotificationResponse: (NotificationResponse response) {
+      // Tap pada notifikasi: navigasi sudah di-handle via GoRouter di NotificationBanner
+      debugPrint('Notification tapped: ${response.payload}');
+    },
+  );
+
+  // Buat Android channel
+  final androidPlugin = flutterLocalNotificationsPlugin
+      .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>();
+  await androidPlugin?.createNotificationChannel(_channel);
+}
+
+/// Request permission notifikasi (Android 13+, iOS)
+Future<void> requestNotificationPermission() async {
+  try {
+    final androidPlugin = flutterLocalNotificationsPlugin
+        .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>();
+    await androidPlugin?.requestNotificationsPermission();
+
+    final iosPlugin = flutterLocalNotificationsPlugin
+        .resolvePlatformSpecificImplementation<IOSFlutterLocalNotificationsPlugin>();
+    await iosPlugin?.requestPermissions(alert: true, badge: true, sound: true);
+  } catch (e) {
+    debugPrint('Error requesting notification permission: $e');
   }
 }
 
-// Provider agar bisa diakses di main.dart atau SplashScreen
-final notificationServiceProvider = Provider((ref) {
-  return NotificationService(ref.watch(supabaseProvider));
-});
+/// Tampilkan local notification
+Future<void> showLocalNotification({
+  required String title,
+  required String body,
+  String? payload,
+}) async {
+  try {
+    const androidDetails = AndroidNotificationDetails(
+      'eticketing_channel',
+      'E-Ticketing Helpdesk',
+      channelDescription: 'Notifikasi perubahan status tiket dan komentar baru',
+      importance: Importance.high,
+      priority: Priority.high,
+      showWhen: true,
+    );
+    const iosDetails = DarwinNotificationDetails(
+      presentAlert: true,
+      presentBadge: true,
+      presentSound: true,
+    );
+    const notifDetails = NotificationDetails(android: androidDetails, iOS: iosDetails);
+
+    await flutterLocalNotificationsPlugin.show(
+      DateTime.now().millisecondsSinceEpoch ~/ 1000,
+      title,
+      body,
+      notifDetails,
+      payload: payload,
+    );
+  } catch (e) {
+    debugPrint('Error showing local notification: $e');
+  }
+}

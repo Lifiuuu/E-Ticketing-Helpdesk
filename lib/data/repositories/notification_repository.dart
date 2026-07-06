@@ -23,6 +23,17 @@ class NotificationRepository {
         .eq('id', notificationId);
   }
 
+  // Tandai semua notifikasi user ini sudah dibaca
+  Future<void> markAllAsRead() async {
+    final user = _supabase.auth.currentUser;
+    if (user == null) return;
+    await _supabase
+        .from('notifications')
+        .update({'is_read': true})
+        .eq('user_id', user.id)
+        .eq('is_read', false);
+  }
+
   // Hapus notifikasi (archive/delete)
   Future<void> deleteNotification(String notificationId) async {
     await _supabase

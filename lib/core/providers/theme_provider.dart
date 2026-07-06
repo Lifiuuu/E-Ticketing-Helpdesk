@@ -20,8 +20,11 @@ class ThemeModeNotifier extends StateNotifier<ThemeMode> {
       final v = prefs.getString(_prefKey);
       if (v == 'light') {
         state = ThemeMode.light;
-      } else if (v == 'dark') state = ThemeMode.dark;
-      else if (v == 'system') state = ThemeMode.system;
+      } else if (v == 'dark') {
+        state = ThemeMode.dark;
+      } else if (v == 'system') {
+        state = ThemeMode.system;
+      }
     } catch (_) {}
   }
 
@@ -38,8 +41,11 @@ class ThemeModeNotifier extends StateNotifier<ThemeMode> {
     // persist
     if (value == ThemeMode.light) {
       _save('light');
-    } else if (value == ThemeMode.dark) _save('dark');
-    else _save('system');
+    } else if (value == ThemeMode.dark) {
+      _save('dark');
+    } else {
+      _save('system');
+    }
   }
 }
 

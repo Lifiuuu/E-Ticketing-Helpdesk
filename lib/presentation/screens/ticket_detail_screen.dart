@@ -334,7 +334,11 @@ class _TicketDetailScreenState extends ConsumerState<TicketDetailScreen> {
                             return AttachmentGrid(attachments: attachments);
                           }
                           // Fallback: tiket lama dengan image_url
-                          if (_ticket!.imageUrl != null) {
+                          // Hanya tampilkan jika URL valid (http/https), skip jika file:// atau kosong
+                          final imageUrl = _ticket!.imageUrl;
+                          final isValidNetworkUrl = imageUrl != null &&
+                              (imageUrl.startsWith('http://') || imageUrl.startsWith('https://'));
+                          if (isValidNetworkUrl) {
                             return Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
@@ -346,13 +350,31 @@ class _TicketDetailScreenState extends ConsumerState<TicketDetailScreen> {
                                       builder: (_) => Scaffold(
                                         backgroundColor: Colors.black,
                                         appBar: AppBar(backgroundColor: Colors.black, foregroundColor: Colors.white),
-                                        body: Center(child: Image.network(_ticket!.imageUrl!)),
+                                        body: Center(
+                                          child: Image.network(
+                                            imageUrl,
+                                            errorBuilder: (_, __, ___) =>
+                                                const Icon(Icons.broken_image, color: Colors.white, size: 64),
+                                          ),
+                                        ),
                                       ),
                                     ));
                                   },
                                   child: ClipRRect(
                                     borderRadius: BorderRadius.circular(8),
-                                    child: Image.network(_ticket!.imageUrl!, height: 200, width: double.infinity, fit: BoxFit.cover),
+                                    child: Image.network(
+                                      imageUrl,
+                                      height: 200,
+                                      width: double.infinity,
+                                      fit: BoxFit.cover,
+                                      errorBuilder: (_, __, ___) => Container(
+                                        height: 200,
+                                        color: Colors.grey.shade200,
+                                        child: const Center(
+                                          child: Icon(Icons.broken_image, size: 48, color: Colors.grey),
+                                        ),
+                                      ),
+                                    ),
                                   ),
                                 ),
                                 const SizedBox(height: 12),

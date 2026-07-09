@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-// Sesuaikan import path dengan proyekmu
 import 'package:projectmobile/core/providers/auth_provider.dart';
 
 class RegisterScreen extends ConsumerStatefulWidget {

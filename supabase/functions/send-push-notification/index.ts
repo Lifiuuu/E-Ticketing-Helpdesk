@@ -1,4 +1,4 @@
-﻿// Supabase Edge Function: send-push-notification
+// Supabase Edge Function: send-push-notification
 // Dipanggil oleh Database Webhook saat ada INSERT ke tabel notifications
 // Mengirim push notification via FCM HTTP v1 API menggunakan Service Account
 
